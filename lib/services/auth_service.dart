@@ -51,20 +51,27 @@ class AuthService {
 
 
     // STEP 6: Check Firebase Authentication
+
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: cleanEmail,
         password: password,
       );
     } on FirebaseAuthException catch (e) {
-      // STEP 7: If Firebase account doesn't exist,
-      // create a new account.
-
-      if (e.code == 'invalid-credential') {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: cleanEmail,
-          password: password,
-        );
+      // If the error code indicates the user doesn't exist, create it.
+      // Note: 'user-not-found' is only thrown if protection is disabled in Firebase Console.
+      if (e.code == 'user-not-found') {
+        try {
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+            email: cleanEmail,
+            password: password,
+          );
+        } on FirebaseAuthException catch (createErr) {
+          throw Exception('Failed to auto-create auth account: ${createErr.message}');
+        }
+      } else if (e.code == 'invalid-credential') {
+        // This usually means wrong password if the user already exists
+        throw Exception('Invalid email or password.');
       } else {
         rethrow;
       }
