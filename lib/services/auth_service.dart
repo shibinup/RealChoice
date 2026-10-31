@@ -2,16 +2,35 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 class AuthService {
-  static const String _isLoggedInKey = 'is_logged_in';
+
 
   /// The shop PIN that must be entered on both login and the PIN page.
   static const String predefinedPin = '1234';
 
-  /// Returns true if the user has a saved logged-in session.
-  static Future<bool> isLoggedIn() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_isLoggedInKey) ?? false;
-  }
+
+
+  // Login status
+
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
+
+  // Get currently logged-in user
+  static User? get currentUser => _auth.currentUser;
+
+  // Check login status
+  static bool get isLoggedIn => currentUser != null;
+
+  // Get previously logged-in user's email
+  static String? get currentEmail => currentUser?.email;
+
+
+  // Listen to login/logout changes
+  static Stream<User?> get authStateChanges =>
+      _auth.authStateChanges();
+
+
+
 
   /// Signs in with Firebase, then persists the session flag.
   /// Throws [FirebaseAuthException] on auth failure.
@@ -76,19 +95,11 @@ class AuthService {
         rethrow;
       }
     }
-
-    // STEP 8: Save login status
-
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_isLoggedInKey, true);
   }
 
   /// Signs out of Firebase and clears the local session flag.
   static Future<void> logout() async {
-    await FirebaseAuth.instance.signOut();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_isLoggedInKey);
+    await _auth.signOut();
   }
 
   /// Returns true when [pin] matches the predefined shop PIN.

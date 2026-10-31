@@ -24,7 +24,7 @@ Future<void> main() async {
 
   }
 
-  final bool loggedIn = firebaseReady && await AuthService.isLoggedIn();
+  final bool loggedIn = firebaseReady && AuthService.isLoggedIn;
 
   runApp(RcSolutionsApp(startOnPin: loggedIn));//here pass constructor parameter is logged in true or false as loggedIn
 }
