@@ -1,13 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 class AuthService {
-
-
-  /// The shop PIN that must be entered on both login and the PIN page.
-  static const String predefinedPin = '1234';
-
-
 
   // Login status
 
@@ -101,7 +96,4 @@ class AuthService {
   static Future<void> logout() async {
     await _auth.signOut();
   }
-
-  /// Returns true when [pin] matches the predefined shop PIN.
-  static bool verifyPin(String pin) => pin == predefinedPin;
 }

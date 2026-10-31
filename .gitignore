@@ -47,20 +47,37 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 
-
-# Firebase sensitive configuration
+# ─── Firebase / Secret configuration ──────────────────────────────────────────
+# These files contain API keys and must NEVER be committed.
+# Each developer/CI pipeline should obtain them from a secure secret store.
 .env
 .env.*
 !.env.example
 
-# Android local configuration
+# Firebase SDK config files (contain project API keys)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
+# Android signing / local machine configuration
 /android/local.properties
 /android/key.properties
 
-# Firebase service account credentials
+# Firebase service account JSON (server-side admin credentials)
 *serviceAccount*.json
 *service-account*.json
 
-# Temporary files
+# ─── Android build artefacts ──────────────────────────────────────────────────
+# Crash dumps / profiling files
+*.hprof
+android/hs_err_pid*.log
+android/java_pid*.hprof
+
+# ─── Node / Firebase Functions ────────────────────────────────────────────────
+functions/node_modules/
+
+# ─── Temporary files ──────────────────────────────────────────────────────────
 *.tmp
 *.bak
+firebase-debug.log
+firebase-debug.*.log
+.firebase/

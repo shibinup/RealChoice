@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:cloud_functions/cloud_functions.dart';
+
 import '../core/app_colors.dart';
 import '../services/auth_service.dart';
+import '../services/pin_service.dart';
 import '../widgets/rc_logo.dart';
 import 'home_screen.dart';
 import 'login_page.dart';
@@ -64,24 +67,74 @@ class _PinPageState extends State<PinPage>
 
   Future<void> _verifyPin() async {
     final pin = _digits.join();
-    if (AuthService.verifyPin(pin)) {
+
+    // Show a subtle loading state while the Cloud Function responds.
+    setState(() {}); // triggers rebuild; the dots remain filled
+
+    try {
+      final success = await PinService.verifyPin(pin);
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-    } else {
+
+      if (success) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      } else {
+        await _shakeController.forward(from: 0);
+        if (!mounted) return;
+        setState(() => _digits.clear());
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Incorrect PIN'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
       await _shakeController.forward(from: 0);
-      if (!mounted) return;
       setState(() => _digits.clear());
+
+      String message;
+      switch (e.code) {
+        case 'resource-exhausted':
+          message = 'Too many attempts. Try again in 15 minutes.';
+          break;
+        case 'permission-denied':
+          message = 'Your account is inactive. Contact the admin.';
+          break;
+        case 'unauthenticated':
+          message = 'Session expired. Please log in again.';
+          break;
+        default:
+          message = e.message ?? 'An error occurred. Please try again.';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Incorrect PIN'),
+          content: Text(message),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           margin: const EdgeInsets.all(16),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      await _shakeController.forward(from: 0);
+      setState(() => _digits.clear());
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Network error. Check your connection.'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.all(16),
         ),
       );
     }
