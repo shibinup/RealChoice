@@ -92,10 +92,7 @@ class _LoginPageState extends State<LoginPage> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final pin = _pinController.text.trim();
-    if (!AuthService.verifyPin(pin)) {
-      _showSnack('Invalid PIN');
-      return;
-    }
+
 
     setState(() => _isLoading = true);
     try {
@@ -111,7 +108,8 @@ class _LoginPageState extends State<LoginPage> {
       );
     } on FirebaseAuthException catch (e) {
       _showSnack(e.message ?? 'Authentication failed');
-    } catch (_) {
+    } catch (error) {
+      print('An error occurred: $error');
       _showSnack('An unexpected error occurred. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -146,7 +144,7 @@ class _LoginPageState extends State<LoginPage> {
 
                     // Heading
                     const Text(
-                      'Welcome Back',
+                      'Welcome to Real Choice',
                       style: TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 26,
@@ -212,23 +210,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
 
                     // Forgot password
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          // TODO: navigate to forgot-password screen
-                        },
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.gold,
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 8, horizontal: 0),
-                        ),
-                        child: const Text(
-                          'Forgot password?',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                      ),
-                    ),
+
 
                     // PIN field
                     TextFormField(

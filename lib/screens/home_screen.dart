@@ -56,7 +56,7 @@ class HomeScreen extends StatelessWidget {
                   text: const TextSpan(
                     children: [
                       TextSpan(
-                        text: 'RC ',
+                        text: 'REAL CHOICE ',
                         style: TextStyle(
                           color: AppColors.gold,
                           fontSize: 28,
@@ -65,7 +65,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
                       TextSpan(
-                        text: 'SOLUTIONS',
+                        text: 'USED CARS',
                         style: TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 28,
@@ -78,7 +78,7 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 const Text(
-                  'Build • Grow • Together',
+                  'Admin panel ',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,

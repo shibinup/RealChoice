@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-///import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import 'core/app_colors.dart';
 import 'screens/login_page.dart';
@@ -17,13 +17,16 @@ Future<void> main() async {
   bool firebaseReady = false;
   try {
     await Firebase.initializeApp();
+    print("firebase ready");
     firebaseReady = true;
-  } catch (_) {
+  } catch (err) {
     firebaseReady = false;
+
   }
 
   final bool loggedIn = firebaseReady && await AuthService.isLoggedIn();
-  runApp(RcSolutionsApp(startOnPin: loggedIn));
+
+  runApp(RcSolutionsApp(startOnPin: loggedIn));//here pass constructor parameter is logged in true or false as loggedIn
 }
 
 class RcSolutionsApp extends StatelessWidget {
@@ -36,7 +39,7 @@ class RcSolutionsApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'RC Solutions',
+      title: 'Real Choice Used Cars',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true).copyWith(
         scaffoldBackgroundColor: AppColors.background,
