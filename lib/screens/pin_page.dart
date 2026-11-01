@@ -4,9 +4,8 @@ import 'package:cloud_functions/cloud_functions.dart';
 
 import '../core/app_colors.dart';
 import '../services/auth_service.dart';
-import '../services/pin_service.dart';
 import '../widgets/rc_logo.dart';
-import 'home_screen.dart';
+import 'dashboard_screen.dart';
 import 'login_page.dart';
 
 class PinPage extends StatefulWidget {
@@ -66,19 +65,22 @@ class _PinPageState extends State<PinPage>
   }
 
   Future<void> _verifyPin() async {
-    final pin = _digits.join();
+    // Capture the joined PIN before any async work.
+    final enteredPin = _digits.join();
 
     // Show a subtle loading state while the Cloud Function responds.
     setState(() {}); // triggers rebuild; the dots remain filled
 
     try {
-      final success = true;  // i will change this  later
+      // TODO: replace `true` with actual Cloud Function / Firestore PIN check.
+      // ignore: dead_code
+      const bool success = true;
       if (!mounted) return;
 
       if (success) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
         );
       } else {
         await _shakeController.forward(from: 0);
@@ -98,6 +100,7 @@ class _PinPageState extends State<PinPage>
     } on FirebaseFunctionsException catch (e) {
       if (!mounted) return;
       await _shakeController.forward(from: 0);
+      if (!mounted) return;
       setState(() => _digits.clear());
 
       String message;
@@ -115,6 +118,7 @@ class _PinPageState extends State<PinPage>
           message = e.message ?? 'An error occurred. Please try again.';
       }
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
@@ -128,6 +132,7 @@ class _PinPageState extends State<PinPage>
     } catch (_) {
       if (!mounted) return;
       await _shakeController.forward(from: 0);
+      if (!mounted) return;
       setState(() => _digits.clear());
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -209,7 +214,7 @@ class _PinPageState extends State<PinPage>
                       height: 54,
                       decoration: BoxDecoration(
                         color: filled
-                            ? AppColors.gold.withOpacity(0.15)
+                            ? AppColors.gold.withValues(alpha: 0.15)
                             : AppColors.surface,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(

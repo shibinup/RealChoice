@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../core/app_colors.dart';
 import '../services/auth_service.dart';
 import '../widgets/rc_logo.dart';
-import 'home_screen.dart';
+import 'dashboard_screen.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -104,12 +104,12 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
       );
     } on FirebaseAuthException catch (e) {
       _showSnack(e.message ?? 'Authentication failed');
     } catch (error) {
-      print('An error occurred: $error');
+      debugPrint('An error occurred: $error');
       _showSnack('An unexpected error occurred. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -290,7 +290,7 @@ class _GoldGradientButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(30),
           boxShadow: [
             BoxShadow(
-              color: AppColors.gold.withOpacity(0.35),
+              color: AppColors.gold.withValues(alpha: 0.35),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -359,7 +359,7 @@ class _ArcPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.gold.withOpacity(0.18)
+      ..color = AppColors.gold.withValues(alpha: 0.18)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
 

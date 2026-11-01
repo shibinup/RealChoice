@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService {
@@ -7,8 +6,6 @@ class AuthService {
   // Login status
 
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
 
   // Get currently logged-in user
   static User? get currentUser => _auth.currentUser;
