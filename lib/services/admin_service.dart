@@ -1,15 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 /// Provides admin-role helpers and CRUD operations backed by the Firestore
 /// `admins` collection.
 ///
 /// Firestore document shape inside `admins/{docId}`:
 ///   {
-///     "email"  : "user@example.com",   // unique admin email
-///     "pin"    : "1234",               // 4-digit login PIN (string)
-///     "active" : true,                 // true → account is active
-///     "role"   : "mainAdmin",          // present only on the super-admin doc
+///     "email"    : "user@example.com",   // unique admin email
+///     "pin"      : "1234",               // 4-digit login PIN (string)
+///     "active"   : true,                 // true → account is active
+///     "role"     : "mainAdmin",          // present only on the super-admin doc
+///     "uid"      : "firebaseUID",        // Firebase Auth UID of the sub-admin
 ///   }
 class AdminService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -59,45 +61,146 @@ class AdminService {
     return _db.collection('admins').orderBy('email').snapshots();
   }
 
-  /// Adds a new admin document. Throws if an admin with [email] already exists.
+  /// Adds or reactivates a sub-admin.
   ///
-  /// The document ID is the normalised email address so it is trivially unique.
-  static Future<void> addAdmin({
+  /// **Existing account (same email already in `admins` collection)**
+  ///   → Sets `active: true` and updates the PIN. No Firebase Auth call is
+  ///     made – the existing Auth account is reused.
+  ///
+  /// **New account**
+  ///   → Creates a Firebase Auth user via a **secondary FirebaseApp instance**
+  ///     (so the main-admin session on the default app is never disturbed),
+  ///     then writes a fresh Firestore document.
+  ///     The secondary app is deleted immediately after creation.
+  ///
+  /// Returns a [_AddAdminResult] describing what actually happened.
+  /// Throws a descriptive [Exception] on validation or Firebase errors.
+  static Future<AddAdminResult> addAdmin({
     required String email,
     required String pin,
+    required String password,
   }) async {
     final cleanEmail = email.trim().toLowerCase();
 
-    // Guard: reject obviously invalid input.
+    // ── Input validation ─────────────────────────────────────────────────────
     if (cleanEmail.isEmpty || !cleanEmail.contains('@')) {
       throw Exception('Please enter a valid email address.');
     }
     if (pin.trim().length != 4) {
       throw Exception('PIN must be exactly 4 digits.');
     }
+    if (password.trim().length < 6) {
+      throw Exception('Password must be at least 6 characters.');
+    }
 
-    // Guard: duplicate check.
-    final existing = await _db
+    // ── Check whether an admins document already exists for this email ───────
+    final existingSnap = await _db
         .collection('admins')
         .where('email', isEqualTo: cleanEmail)
         .limit(1)
         .get();
-    if (existing.docs.isNotEmpty) {
-      throw Exception('An admin with this email already exists.');
+
+    if (existingSnap.docs.isNotEmpty) {
+      // ── CASE A: document exists → reactivate + update PIN ──────────────────
+      final existingDoc = existingSnap.docs.first;
+
+      // Protect the main admin document from accidental modification.
+      if (existingDoc.data()['role'] == 'mainAdmin') {
+        throw Exception('Cannot modify the main admin account.');
+      }
+
+      await existingDoc.reference.update({
+        'active': true,
+        'pin': pin.trim(),
+      });
+
+      return AddAdminResult.reactivated;
     }
 
-    // Use the email as the document ID for easy lookup.
+    // ── CASE B: no document → create Firebase Auth + new Firestore doc ───────
+    const secondaryAppName = 'secondaryAdminCreator';
+    final defaultOptions = Firebase.app().options;
+
+    // Clean up any leftover secondary app from a previous failed attempt.
+    try {
+      await Firebase.app(secondaryAppName).delete();
+    } catch (_) {}
+
+    late FirebaseApp secondaryApp;
+    String uid = '';
+
+    try {
+      secondaryApp = await Firebase.initializeApp(
+        name: secondaryAppName,
+        options: defaultOptions,
+      );
+
+      final secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
+
+      final credential = await secondaryAuth.createUserWithEmailAndPassword(
+        email: cleanEmail,
+        password: password.trim(),
+      );
+
+      uid = credential.user?.uid ?? '';
+
+      // Sign out the secondary session before teardown.
+      await secondaryAuth.signOut();
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_authErrorMessage(e.code));
+    } finally {
+      // Always delete the secondary app to free resources.
+      try {
+        await secondaryApp.delete();
+      } catch (_) {}
+    }
+
+    // Write the new Firestore admin document.
     final docId = cleanEmail.replaceAll(RegExp(r'[.@]'), '_');
     await _db.collection('admins').doc(docId).set({
       'email': cleanEmail,
       'pin': pin.trim(),
       'active': true,
-      'role':'subAdmin',
+      'role': 'subAdmin',
+      'uid': uid,
     });
+
+    return AddAdminResult.created;
   }
 
-  /// Permanently deletes the admin document identified by [docId].
-  static Future<void> deleteAdmin(String docId) async {
-    await _db.collection('admins').doc(docId).delete();
+  /// Maps common [FirebaseAuthException] error codes to user-friendly messages.
+  static String _authErrorMessage(String code) {
+    switch (code) {
+      case 'email-already-in-use':
+        // Auth account exists but no Firestore doc – create the doc only.
+        return 'A Firebase Auth account already exists for this email. '
+            'Please check the email and try again, or contact support.';
+      case 'invalid-email':
+        return 'The email address is not valid.';
+      case 'weak-password':
+        return 'Password is too weak. Use at least 6 characters.';
+      case 'operation-not-allowed':
+        return 'Email/password sign-in is not enabled in Firebase Console.';
+      default:
+        return 'Failed to create account ($code).';
+    }
   }
+
+  /// Soft-deletes a sub-admin by setting `active: false` on their Firestore
+  /// document. The Firebase Auth account and the document itself are preserved
+  /// so the account can be reactivated later via [addAdmin].
+  static Future<void> deactivateAdmin(String docId) async {
+    await _db.collection('admins').doc(docId).update({'active': false});
+  }
+}
+
+// ── Result type ──────────────────────────────────────────────────────────────
+
+/// Describes the outcome of [AdminService.addAdmin].
+enum AddAdminResult {
+  /// A brand-new Firebase Auth account and Firestore document were created.
+  created,
+
+  /// An existing (inactive) Firestore document was reactivated with a new PIN.
+  reactivated,
 }

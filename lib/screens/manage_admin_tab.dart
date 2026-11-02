@@ -19,13 +19,16 @@ class ManageAdminTab extends StatefulWidget {
 class _ManageAdminTabState extends State<ManageAdminTab> {
   final _emailController = TextEditingController();
   final _pinController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isAdding = false;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
     _emailController.dispose();
     _pinController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -86,13 +89,18 @@ class _ManageAdminTabState extends State<ManageAdminTab> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _isAdding = true);
     try {
-      await AdminService.addAdmin(
+      final result = await AdminService.addAdmin(
         email: _emailController.text.trim(),
         pin: _pinController.text.trim(),
+        password: _passwordController.text.trim(),
       );
       _emailController.clear();
       _pinController.clear();
-      _showSnack('Admin added successfully.', isError: false);
+      _passwordController.clear();
+      final msg = result == AddAdminResult.reactivated
+          ? 'Admin reactivated with new PIN.'
+          : 'Sub-admin added successfully.';
+      _showSnack(msg, isError: false);
     } catch (e) {
       _showSnack(e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -100,18 +108,18 @@ class _ManageAdminTabState extends State<ManageAdminTab> {
     }
   }
 
-  Future<void> _deleteAdmin(String docId, String email) async {
+  Future<void> _deactivateAdmin(String docId, String email) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: const Text(
-          'Delete Admin',
+          'Deactivate Admin',
           style: TextStyle(color: AppColors.textPrimary),
         ),
         content: Text(
-          'Remove "$email" from the admin list?\nThis action cannot be undone.',
+          'Deactivate "$email"?\n\nThey will lose access immediately but can be reactivated later by adding them again.',
           style: const TextStyle(color: AppColors.textSecondary, height: 1.5),
         ),
         actions: [
@@ -125,7 +133,7 @@ class _ManageAdminTabState extends State<ManageAdminTab> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text(
-              'Delete',
+              'Deactivate',
               style: TextStyle(color: Colors.redAccent),
             ),
           ),
@@ -134,10 +142,10 @@ class _ManageAdminTabState extends State<ManageAdminTab> {
     );
     if (confirmed != true) return;
     try {
-      await AdminService.deleteAdmin(docId);
-      _showSnack('"$email" removed.', isError: false);
+      await AdminService.deactivateAdmin(docId);
+      _showSnack('"$email" deactivated.', isError: false);
     } catch (e) {
-      _showSnack('Failed to delete admin: $e');
+      _showSnack('Failed to deactivate admin: $e');
     }
   }
 
@@ -335,6 +343,47 @@ class _ManageAdminTabState extends State<ManageAdminTab> {
                                   return null;
                                 },
                               ),
+                              const SizedBox(height: 14),
+
+                              // Password field (used to create Firebase Auth account)
+                              TextFormField(
+                                controller: _passwordController,
+                                obscureText: _obscurePassword,
+                                style: const TextStyle(
+                                    color: AppColors.textPrimary),
+                                decoration: _fieldDecoration(
+                                  hint: 'Email Password',
+                                  icon: Icons.lock_outline_rounded,
+                                  suffix: IconButton(
+                                    icon: Icon(
+                                      _obscurePassword
+                                          ? Icons.visibility_off_outlined
+                                          : Icons.visibility_outlined,
+                                      color: AppColors.textSecondary,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => setState(
+                                        () => _obscurePassword =
+                                            !_obscurePassword),
+                                  ),
+                                ).copyWith(
+                                  helperText:
+                                      'Min. 6 characters needed',
+                                  helperStyle: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Password is required';
+                                  }
+                                  if (v.trim().length < 6) {
+                                    return 'Password must be at least 6 characters';
+                                  }
+                                  return null;
+                                },
+                              ),
                               const SizedBox(height: 18),
 
                               // Add Admin button
@@ -505,13 +554,16 @@ class _ManageAdminTabState extends State<ManageAdminTab> {
                                       data['email'] as String? ?? '—';
                                   final isMain =
                                       data['role'] == 'mainAdmin';
+                                  final isActive =
+                                      data['active'] as bool? ?? false;
                                   return AdminListTile(
                                     email: email,
                                     isMainAdmin: isMain,
-                                    onDelete: isMain
-                                        ? null // Prevent deleting the main admin
+                                    isActive: isActive,
+                                    onDeactivate: isMain
+                                        ? null // Prevent deactivating the main admin
                                         : () =>
-                                            _deleteAdmin(doc.id, email),
+                                            _deactivateAdmin(doc.id, email),
                                   );
                                 }),
                             ],
@@ -539,13 +591,15 @@ class _ManageAdminTabState extends State<ManageAdminTab> {
 class AdminListTile extends StatelessWidget {
   final String email;
   final bool isMainAdmin;
-  final VoidCallback? onDelete;
+  final bool isActive;
+  final VoidCallback? onDeactivate;
 
   const AdminListTile({
     super.key,
     required this.email,
     required this.isMainAdmin,
-    this.onDelete,
+    required this.isActive,
+    this.onDeactivate,
   });
 
   @override
@@ -554,64 +608,100 @@ class AdminListTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: isActive ? AppColors.surface : AppColors.surface.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isMainAdmin
               ? AppColors.gold.withValues(alpha: 0.4)
-              : AppColors.border,
+              : isActive
+                  ? AppColors.border
+                  : Colors.redAccent.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
         children: [
-          // Email icon
-          const Icon(Icons.mail_outline_rounded,
-              color: AppColors.textSecondary, size: 20),
+          // Email icon – dimmed when inactive
+          Icon(
+            Icons.mail_outline_rounded,
+            color: isActive
+                ? AppColors.textSecondary
+                : AppColors.textSecondary.withValues(alpha: 0.5),
+            size: 20,
+          ),
           const SizedBox(width: 12),
 
-          // Email + optional "Main Admin" badge
+          // Email + role/status badges
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   email,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: isActive
+                        ? AppColors.textPrimary
+                        : AppColors.textPrimary.withValues(alpha: 0.5),
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
+                    decoration: isActive ? null : TextDecoration.lineThrough,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (isMainAdmin) ...[
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.gold.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                          color: AppColors.gold.withValues(alpha: 0.4)),
-                    ),
-                    child: const Text(
-                      'Main Admin',
-                      style: TextStyle(
-                        color: AppColors.gold,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    // Main Admin badge
+                    if (isMainAdmin)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.gold.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                              color: AppColors.gold.withValues(alpha: 0.4)),
+                        ),
+                        child: const Text(
+                          'Main Admin',
+                          style: TextStyle(
+                            color: AppColors.gold,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ],
+                    // Inactive badge
+                    if (!isActive) ...[
+                      if (isMainAdmin) const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                              color: Colors.redAccent.withValues(alpha: 0.4)),
+                        ),
+                        child: const Text(
+                          'Inactive',
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
 
-          // Delete button – hidden for the main admin row
-          if (onDelete != null)
+          // Deactivate button – hidden for main admin and already-inactive rows
+          if (onDeactivate != null && isActive)
             GestureDetector(
-              onTap: onDelete,
+              onTap: onDeactivate,
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
@@ -624,11 +714,11 @@ class AdminListTile extends StatelessWidget {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.delete_outline,
+                    Icon(Icons.block_outlined,
                         color: Colors.redAccent, size: 16),
                     SizedBox(width: 5),
                     Text(
-                      'Delete',
+                      'Deactivate',
                       style: TextStyle(
                         color: Colors.redAccent,
                         fontSize: 13,
