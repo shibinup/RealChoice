@@ -27,6 +27,7 @@ class AuthService {
   /// Signs in with Firebase, then persists the session flag.
   /// Throws [FirebaseAuthException] on auth failure.
 
+
   static Future<void> login(
       String email,
       String password,
@@ -53,41 +54,41 @@ class AuthService {
     final adminData = adminSnapshot.docs.first.data();
 
     // STEP 5: Check PIN
-    if (adminData['pin'] != pin.trim()) {
+    if (adminData['pin']?.toString().trim() != pin.trim()) {
       throw Exception('Incorrect PIN.');
     }
+
+    // STEP 6: Check admin active status
     if (adminData['active'] != true) {
       throw Exception('Admin Inactive.');
     }
 
-
-    // STEP 6: Check Firebase Authentication
-
+    // STEP 7: Firebase Authentication
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: cleanEmail,
         password: password,
       );
+
     } on FirebaseAuthException catch (e) {
-      // If the error code indicates the user doesn't exist, create it.
-      // Note: 'user-not-found' is only thrown if protection is disabled in Firebase Console.
+
       if (e.code == 'user-not-found') {
-        try {
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-            email: cleanEmail,
-            password: password,
-          );
-        } on FirebaseAuthException catch (createErr) {
-          throw Exception('Failed to auto-create auth account: ${createErr.message}');
-        }
-      } else if (e.code == 'invalid-credential') {
-        // This usually means wrong password if the user already exists
+        throw Exception(
+          'No Firebase Authentication account found. Please contact the main admin.',
+        );
+      } else if (e.code == 'wrong-password' ||
+          e.code == 'invalid-credential') {
         throw Exception('Invalid email or password.');
+      } else if (e.code == 'invalid-email') {
+        throw Exception('Invalid email address.');
+      } else if (e.code == 'user-disabled') {
+        throw Exception('This account has been disabled.');
       } else {
-        rethrow;
+        throw Exception(e.message ?? 'Login failed.');
       }
     }
   }
+
 
   /// Signs out of Firebase and clears the local session flag.
   static Future<void> logout() async {
