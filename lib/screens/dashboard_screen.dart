@@ -5,6 +5,7 @@ import '../core/app_colors.dart';
 import '../services/admin_service.dart';
 import '../services/auth_service.dart';
 import 'login_page.dart';
+import 'manage_admin_tab.dart';
 
 // ---------------------------------------------------------------------------
 // Dashboard Shell – holds bottom nav + tab bodies
@@ -63,7 +64,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final bodies = <Widget>[
       _VehicleDashboardTab(isMainAdmin: _isMainAdmin),
       const _AddCarTab(),
-      if (_isMainAdmin) const _ManageAdminTab(),
+      if (_isMainAdmin) const ManageAdminTab(),
       const _ProfileTab(),
     ];
     final safeIndex = index.clamp(0, bodies.length - 1);
@@ -568,23 +569,6 @@ class _AddCarTab extends StatelessWidget {
       icon: Icons.directions_car_outlined,
       title: 'Add Car',
       subtitle: 'This section is coming soon.',
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Tab 3 – Manage Admin (only main admin)
-// ---------------------------------------------------------------------------
-
-class _ManageAdminTab extends StatelessWidget {
-  const _ManageAdminTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return const _PlaceholderTab(
-      icon: Icons.admin_panel_settings_outlined,
-      title: 'Manage Admin',
-      subtitle: 'Add, remove, or update admin accounts.',
     );
   }
 }

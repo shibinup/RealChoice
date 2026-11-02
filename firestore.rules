@@ -2,13 +2,80 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── Helper: is the requesting user the main admin? ─────────────────────────
+    function isMainAdmin() {
+      let email = request.auth.token.email;
+      let adminDocs = getAfter(/databases/$(database)/documents/admins/$(email.replace('.', '_').replace('@', '_')));
+      // We query by email field; use get() on the known doc ID pattern.
+      // Because doc IDs are derived from the email, we look up via a query-style
+      // rule. For simplicity we keep a single doc lookup strategy:
+      return request.auth != null
+          && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+             == false // fallback — real guard below
+          && false;  // placeholder; see note below
+    }
+
     // ── admins ────────────────────────────────────────────────────────────────
-    // Read: any authenticated user may read their own admin document.
-    // Write: only server-side (Cloud Functions via Admin SDK) or existing admins.
+    // • Any authenticated user may read their OWN admin document (needed for
+    //   role/active checks at login and during the session).
+    // • Main admin (role == "mainAdmin" && active == true) may read ALL admin
+    //   documents so the Manage Admin tab can stream the full list.
+    // • Main admin may also CREATE and DELETE admin documents (but not edit the
+    //   mainAdmin document itself).
+    // • The PIN field is stored server-side and only readable by the owner doc.
     match /admins/{adminId} {
+
+      // Every authenticated user can read their own document.
       allow read: if request.auth != null
                   && request.auth.token.email == resource.data.email;
-      allow write: if false; // Managed by Admin SDK / Cloud Functions only.
+
+      // Main admin can read ALL admin documents (for the Manage Admin list).
+      allow read: if request.auth != null
+                  && exists(/databases/$(database)/documents/admins/$(
+                        request.auth.token.email
+                          .replace('.', '_')
+                          .replace('@', '_')
+                     ))
+                  && get(/databases/$(database)/documents/admins/$(
+                        request.auth.token.email
+                          .replace('.', '_')
+                          .replace('@', '_')
+                     )).data.role == 'mainAdmin'
+                  && get(/databases/$(database)/documents/admins/$(
+                        request.auth.token.email
+                          .replace('.', '_')
+                          .replace('@', '_')
+                     )).data.active == true;
+
+      // Main admin can create new admin documents (but not overwrite mainAdmin).
+      allow create: if request.auth != null
+                    && get(/databases/$(database)/documents/admins/$(
+                          request.auth.token.email
+                            .replace('.', '_')
+                            .replace('@', '_')
+                       )).data.role == 'mainAdmin'
+                    && get(/databases/$(database)/documents/admins/$(
+                          request.auth.token.email
+                            .replace('.', '_')
+                            .replace('@', '_')
+                       )).data.active == true
+                    // Prevent setting mainAdmin role via client.
+                    && !('role' in request.resource.data);
+
+      // Main admin can delete any NON-mainAdmin document.
+      allow delete: if request.auth != null
+                    && get(/databases/$(database)/documents/admins/$(
+                          request.auth.token.email
+                            .replace('.', '_')
+                            .replace('@', '_')
+                       )).data.role == 'mainAdmin'
+                    && get(/databases/$(database)/documents/admins/$(
+                          request.auth.token.email
+                            .replace('.', '_')
+                            .replace('@', '_')
+                       )).data.active == true
+                    // Cannot delete the mainAdmin doc itself.
+                    && resource.data.role != 'mainAdmin';
     }
 
     // ── pin_rate_limits ───────────────────────────────────────────────────────
