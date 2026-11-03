@@ -7,6 +7,8 @@ import '../services/auth_service.dart';
 import '../widgets/rc_logo.dart';
 import 'dashboard_screen.dart';
 
+
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -89,6 +91,8 @@ class _LoginPageState extends State<LoginPage> {
   // ---------------------------------------------------------------------------
 
   Future<void> _handleLogin() async {
+
+
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final pin = _pinController.text.trim();

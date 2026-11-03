@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'package:cloud_functions/cloud_functions.dart';
-
 import '../core/app_colors.dart';
 import '../services/auth_service.dart';
+import '../services/pin_service.dart';
 import '../widgets/rc_logo.dart';
 import 'dashboard_screen.dart';
 import 'login_page.dart';
@@ -68,13 +67,11 @@ class _PinPageState extends State<PinPage>
     // Capture the joined PIN before any async work.
     final enteredPin = _digits.join();
 
-    // Show a subtle loading state while the Cloud Function responds.
-    setState(() {}); // triggers rebuild; the dots remain filled
+    // Trigger a rebuild so the filled dots stay visible during the async call.
+    setState(() {});
 
     try {
-      // TODO: replace `true` with actual Cloud Function / Firestore PIN check.
-      // ignore: dead_code
-      const bool success = true;
+      final success = await PinService.verifyPin(enteredPin);
       if (!mounted) return;
 
       if (success) {
@@ -97,31 +94,15 @@ class _PinPageState extends State<PinPage>
           ),
         );
       }
-    } on FirebaseFunctionsException catch (e) {
+    } on Exception catch (e) {
       if (!mounted) return;
       await _shakeController.forward(from: 0);
       if (!mounted) return;
       setState(() => _digits.clear());
 
-      String message;
-      switch (e.code) {
-        case 'resource-exhausted':
-          message = 'Too many attempts. Try again in 15 minutes.';
-          break;
-        case 'permission-denied':
-          message = 'Your account is inactive. Contact the admin.';
-          break;
-        case 'unauthenticated':
-          message = 'Session expired. Please log in again.';
-          break;
-        default:
-          message = e.message ?? 'An error occurred. Please try again.';
-      }
-
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message),
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
           shape:

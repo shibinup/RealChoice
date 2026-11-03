@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'pin_service.dart';
+
 class AuthService {
 
   // Login status
@@ -53,8 +55,9 @@ class AuthService {
     // STEP 4: Get admin document
     final adminData = adminSnapshot.docs.first.data();
 
-    // STEP 5: Check PIN
-    if (adminData['pin']?.toString().trim() != pin.trim()) {
+    // STEP 5: Hash the entered PIN and compare against the stored SHA-256 hash
+    final enteredHash = PinService.hashPin(pin.trim());
+    if (adminData['pin']?.toString().trim() != enteredHash) {
       throw Exception('Incorrect PIN.');
     }
 

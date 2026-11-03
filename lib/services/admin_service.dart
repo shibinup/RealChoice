@@ -2,17 +2,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+import 'pin_service.dart';
+
 /// Provides admin-role helpers and CRUD operations backed by the Firestore
 /// `admins` collection.
 ///
 /// Firestore document shape inside `admins/{docId}`:
+///   ```
 ///   {
 ///     "email"    : "user@example.com",   // unique admin email
-///     "pin"      : "1234",               // 4-digit login PIN (string)
+///     "pin"      : "<sha256-hex>",       // SHA-256 hash of the 4-digit PIN
 ///     "active"   : true,                 // true → account is active
 ///     "role"     : "mainAdmin",          // present only on the super-admin doc
 ///     "uid"      : "firebaseUID",        // Firebase Auth UID of the sub-admin
 ///   }
+///   ```
 class AdminService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
@@ -152,10 +156,11 @@ class AdminService {
     }
 
     // Write the new Firestore admin document.
+    // The PIN is stored as a SHA-256 hash — never in plain text.
     final docId = cleanEmail.replaceAll(RegExp(r'[.@]'), '_');
     await _db.collection('admins').doc(docId).set({
       'email': cleanEmail,
-      'pin': pin.trim(),
+      'pin': PinService.hashPin(pin.trim()),
       'active': true,
       'role': 'subAdmin',
       'uid': uid,
