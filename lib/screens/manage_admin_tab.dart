@@ -89,7 +89,7 @@ class _ManageAdminTabState extends State<ManageAdminTab> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _isAdding = true);
     try {
-      final result = await AdminService.addAdmin(
+      await AdminService.addAdmin(
         email: _emailController.text.trim(),
         pin: _pinController.text.trim(),
         password: _passwordController.text.trim(),
@@ -97,14 +97,52 @@ class _ManageAdminTabState extends State<ManageAdminTab> {
       _emailController.clear();
       _pinController.clear();
       _passwordController.clear();
-      final msg = result == AddAdminResult.reactivated
-          ? 'Admin reactivated with new PIN.'
-          : 'Sub-admin added successfully.';
-      _showSnack(msg, isError: false);
+      _showSnack('Sub-admin added successfully.', isError: false);
     } catch (e) {
       _showSnack(e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _isAdding = false);
+    }
+  }
+
+  Future<void> _activateAdmin(String docId, String email) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text(
+          'Activate Admin',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: Text(
+          'Reactivate "$email"?\n\nThey will regain access immediately.',
+          style: const TextStyle(color: AppColors.textSecondary, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Activate',
+              style: TextStyle(color: AppColors.gold),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await AdminService.activateAdmin(docId);
+      _showSnack('"$email" has been reactivated.', isError: false);
+    } catch (e) {
+      _showSnack('Failed to activate admin: $e');
     }
   }
 
@@ -306,6 +344,46 @@ class _ManageAdminTabState extends State<ManageAdminTab> {
                               ),
                               const SizedBox(height: 14),
 
+                              // Password field (used to create Firebase Auth account)
+                              TextFormField(
+                                controller: _passwordController,
+                                obscureText: _obscurePassword,
+                                style: const TextStyle(
+                                    color: AppColors.textPrimary),
+                                decoration: _fieldDecoration(
+                                  hint: 'Email Password',
+                                  icon: Icons.lock_outline_rounded,
+                                  suffix: IconButton(
+                                    icon: Icon(
+                                      _obscurePassword
+                                          ? Icons.visibility_off_outlined
+                                          : Icons.visibility_outlined,
+                                      color: AppColors.textSecondary,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => setState(
+                                        () => _obscurePassword =
+                                            !_obscurePassword),
+                                  ),
+                                ).copyWith(
+                                  helperText: 'Min. 6 characters needed',
+                                  helperStyle: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Password is required';
+                                  }
+                                  if (v.trim().length < 6) {
+                                    return 'Password must be at least 6 characters';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 14),
+
                               // PIN field (always obscured – never displayed)
                               TextFormField(
                                 controller: _pinController,
@@ -339,47 +417,6 @@ class _ManageAdminTabState extends State<ManageAdminTab> {
                                   }
                                   if (v.length != 4) {
                                     return 'PIN must be exactly 4 digits';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 14),
-
-                              // Password field (used to create Firebase Auth account)
-                              TextFormField(
-                                controller: _passwordController,
-                                obscureText: _obscurePassword,
-                                style: const TextStyle(
-                                    color: AppColors.textPrimary),
-                                decoration: _fieldDecoration(
-                                  hint: 'Email Password',
-                                  icon: Icons.lock_outline_rounded,
-                                  suffix: IconButton(
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                      color: AppColors.textSecondary,
-                                      size: 20,
-                                    ),
-                                    onPressed: () => setState(
-                                        () => _obscurePassword =
-                                            !_obscurePassword),
-                                  ),
-                                ).copyWith(
-                                  helperText:
-                                      'Min. 6 characters needed',
-                                  helperStyle: const TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                validator: (v) {
-                                  if (v == null || v.trim().isEmpty) {
-                                    return 'Password is required';
-                                  }
-                                  if (v.trim().length < 6) {
-                                    return 'Password must be at least 6 characters';
                                   }
                                   return null;
                                 },
@@ -564,6 +601,9 @@ class _ManageAdminTabState extends State<ManageAdminTab> {
                                         ? null // Prevent deactivating the main admin
                                         : () =>
                                             _deactivateAdmin(doc.id, email),
+                                    onActivate: isMain
+                                        ? null // Prevent modifying the main admin
+                                        : () => _activateAdmin(doc.id, email),
                                   );
                                 }),
                             ],
@@ -593,6 +633,7 @@ class AdminListTile extends StatelessWidget {
   final bool isMainAdmin;
   final bool isActive;
   final VoidCallback? onDeactivate;
+  final VoidCallback? onActivate;
 
   const AdminListTile({
     super.key,
@@ -600,6 +641,7 @@ class AdminListTile extends StatelessWidget {
     required this.isMainAdmin,
     required this.isActive,
     this.onDeactivate,
+    this.onActivate,
   });
 
   @override
@@ -698,37 +740,69 @@ class AdminListTile extends StatelessWidget {
             ),
           ),
 
-          // Deactivate button – hidden for main admin and already-inactive rows
-          if (onDeactivate != null && isActive)
-            GestureDetector(
-              onTap: onDeactivate,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: Colors.redAccent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                      color: Colors.redAccent.withValues(alpha: 0.4)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.block_outlined,
-                        color: Colors.redAccent, size: 16),
-                    SizedBox(width: 5),
-                    Text(
-                      'Deactivate',
-                      style: TextStyle(
-                        color: Colors.redAccent,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+          // Action button – Deactivate for active admins, Activate for inactive
+          if (!isMainAdmin) ...[
+            if (isActive && onDeactivate != null)
+              GestureDetector(
+                onTap: onDeactivate,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: Colors.redAccent.withValues(alpha: 0.4)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.block_outlined,
+                          color: Colors.redAccent, size: 16),
+                      SizedBox(width: 5),
+                      Text(
+                        'Deactivate',
+                        style: TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+              )
+            else if (!isActive && onActivate != null)
+              GestureDetector(
+                onTap: onActivate,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: AppColors.gold.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: AppColors.gold.withValues(alpha: 0.4)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle_outline,
+                          color: AppColors.gold, size: 16),
+                      SizedBox(width: 5),
+                      Text(
+                        'Activate',
+                        style: TextStyle(
+                          color: AppColors.gold,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
+          ],
         ],
       ),
     );

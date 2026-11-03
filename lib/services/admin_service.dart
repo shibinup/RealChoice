@@ -101,7 +101,7 @@ class AdminService {
         .get();
 
     if (existingSnap.docs.isNotEmpty) {
-      // ── CASE A: document exists → reactivate + update PIN ──────────────────
+      // ── CASE A: document exists → reject with a clear error ───────────────
       final existingDoc = existingSnap.docs.first;
 
       // Protect the main admin document from accidental modification.
@@ -109,12 +109,8 @@ class AdminService {
         throw Exception('Cannot modify the main admin account.');
       }
 
-      await existingDoc.reference.update({
-        'active': true,
-        'pin': pin.trim(),
-      });
-
-      return AddAdminResult.reactivated;
+      throw Exception(
+          'This email is already used. Please use a different email address.');
     }
 
     // ── CASE B: no document → create Firebase Auth + new Firestore doc ───────
@@ -188,9 +184,15 @@ class AdminService {
 
   /// Soft-deletes a sub-admin by setting `active: false` on their Firestore
   /// document. The Firebase Auth account and the document itself are preserved
-  /// so the account can be reactivated later via [addAdmin].
+  /// so the account can be reactivated later via [activateAdmin].
   static Future<void> deactivateAdmin(String docId) async {
     await _db.collection('admins').doc(docId).update({'active': false});
+  }
+
+  /// Reactivates a previously deactivated sub-admin by setting `active: true`
+  /// on their Firestore document.
+  static Future<void> activateAdmin(String docId) async {
+    await _db.collection('admins').doc(docId).update({'active': true});
   }
 }
 
