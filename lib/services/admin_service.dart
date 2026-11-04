@@ -60,7 +60,7 @@ class AdminService {
   // ── Admin management (main admin only) ──────────────────────────────────────
 
   /// Returns a real-time stream of all documents in the `admins` collection,
-  /// ordered by email. Only the main admin should call this.
+  /// ordered by email. Only the main admin should call this. streamAdmins
   static Stream<QuerySnapshot<Map<String, dynamic>>> streamAdmins() {
     return _db.collection('admins').orderBy('email').snapshots();
   }

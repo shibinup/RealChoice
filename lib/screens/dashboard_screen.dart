@@ -235,10 +235,22 @@ class _VehicleDashboardTabState extends State<_VehicleDashboardTab> {
                       // Logo row
                       Row(
                         children: [
-                          // Car icon (gold outline)
-                          CustomPaint(
-                            size: const Size(60, 28),
-                            painter: _CarSilhouettePainter(),
+                          // RC logo image (circular, gold border)
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: AppColors.gold, width: 1.8),
+                              color: AppColors.surface,
+                            ),
+                            child: ClipOval(
+                              child: Image.asset(
+                                'assets/images/rc_logo.jpg',
+                                fit: BoxFit.cover,
+                              ),
+                            ),
                           ),
                           const SizedBox(width: 12),
                           const Column(
@@ -763,37 +775,5 @@ class _ArcPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// ---------------------------------------------------------------------------
-// Car silhouette painter (top-left logo area)
-// ---------------------------------------------------------------------------
 
-class _CarSilhouettePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.gold
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
 
-    final path = Path();
-    // Simple car silhouette shape
-    path.moveTo(4, size.height * 0.7);
-    path.lineTo(10, size.height * 0.3);
-    path.lineTo(20, size.height * 0.1);
-    path.lineTo(40, size.height * 0.1);
-    path.lineTo(52, size.height * 0.3);
-    path.lineTo(56, size.height * 0.7);
-    path.close();
-
-    canvas.drawPath(path, paint);
-
-    // Wheels
-    canvas.drawCircle(Offset(14, size.height * 0.82), 5, paint);
-    canvas.drawCircle(Offset(46, size.height * 0.82), 5, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

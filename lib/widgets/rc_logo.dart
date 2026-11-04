@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/app_colors.dart';
 
-/// Reusable RC Solutions logo widget.
+/// Reusable Real Choice Used Cars logo widget.
 class RcLogo extends StatelessWidget {
   const RcLogo({super.key});
 
@@ -10,35 +10,30 @@ class RcLogo extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Circular gold-bordered container with "RC"
+        // Circular logo image with gold border
         Container(
-          width: 72,
-          height: 72,
+          width: 90,
+          height: 90,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(color: AppColors.gold, width: 2.5),
             color: AppColors.surface,
           ),
-          child: const Center(
-            child: Text(
-              'RC',
-              style: TextStyle(
-                color: AppColors.gold,
-                fontSize: 26,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.5,
-              ),
+          child: ClipOval(
+            child: Image.asset(
+              'assets/images/rc_logo.jpg',
+              fit: BoxFit.cover,
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        // "RC SOLUTIONS" wordmark
+        const SizedBox(height: 14),
+        // "REAL CHOICE" wordmark
         RichText(
           textAlign: TextAlign.center,
           text: const TextSpan(
             children: [
               TextSpan(
-                text: 'RC ',
+                text: 'REAL CHOICE ',
                 style: TextStyle(
                   color: AppColors.gold,
                   fontSize: 22,
@@ -47,12 +42,12 @@ class RcLogo extends StatelessWidget {
                 ),
               ),
               TextSpan(
-                text: 'SOLUTIONS',
+                text: 'USED CARS',
                 style: TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 4,
+                  letterSpacing: 3,
                 ),
               ),
             ],
@@ -60,7 +55,7 @@ class RcLogo extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Build • Grow • Together',
+          'Drive Better. Choose Smart.',
           style: TextStyle(
             color: AppColors.textSecondary,
             fontSize: 12,

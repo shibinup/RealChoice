@@ -27,7 +27,7 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Gold icon
+                // RC logo image
                 Container(
                   width: 90,
                   height: 90,
@@ -36,10 +36,11 @@ class HomeScreen extends StatelessWidget {
                     border: Border.all(color: AppColors.gold, width: 2.5),
                     color: AppColors.surface,
                   ),
-                  child: const Icon(
-                    Icons.storefront_outlined,
-                    color: AppColors.gold,
-                    size: 40,
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/rc_logo.jpg',
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 28),
