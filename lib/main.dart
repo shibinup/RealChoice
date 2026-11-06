@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'core/app_colors.dart';
 import 'screens/login_page.dart';
@@ -11,6 +12,9 @@ import 'package:realchoice/services/auth_service.dart';
 /// so we can decide which screen to open first.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load .env variables before anything else accesses them (e.g. CloudinaryService).
+  await dotenv.load(fileName: '.env');
 
   // Initialise Firebase — if it fails (e.g. missing google-services.json),
   // we degrade gracefully by treating the user as logged-out.

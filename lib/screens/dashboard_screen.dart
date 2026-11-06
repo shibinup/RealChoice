@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../core/app_colors.dart';
 import '../services/admin_service.dart';
 import '../services/auth_service.dart';
+import 'add_car_screen.dart';
 import 'login_page.dart';
 import 'manage_admin_tab.dart';
 
@@ -569,7 +570,7 @@ class _VehicleCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Tab 2 – Add Car (placeholder)
+// Tab 2 – Add Car
 // ---------------------------------------------------------------------------
 
 class _AddCarTab extends StatelessWidget {
@@ -577,11 +578,7 @@ class _AddCarTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _PlaceholderTab(
-      icon: Icons.directions_car_outlined,
-      title: 'Add Car',
-      subtitle: 'This section is coming soon.',
-    );
+    return const AddCarScreen();
   }
 }
 
